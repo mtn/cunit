@@ -10,10 +10,13 @@ void test_plus() {
 }
 
 void test_minus() {
-    assert(1 - 1 == 2);
+    if (1 - 1 != 2) {
+        exit(1);
+    }
 }
 
-void run(void (*test_fn)()) {
+// Run, expecting a exit failure
+void run_return(void (*test_fn)(), int expected_return) {
     pid_t child_pid;
     Dl_info info;
 
@@ -29,8 +32,7 @@ void run(void (*test_fn)()) {
         exit(1);
     }
 
-    child_pid = fork();
-    if (child_pid == 0) {
+    if ((child_pid = fork()) == 0) {
         while ((dup2(filedes[1], STDOUT_FILENO) == -1) && (errno == EINTR));
         close(filedes[1]);
         close(filedes[0]);
@@ -46,12 +48,14 @@ void run(void (*test_fn)()) {
     int status = 0;
     // Wait for the child process to terminate
     waitpid(child_pid, &status, 0);
+    int exit_status = WEXITSTATUS(status);
 
     printf("Test %s %s!\n", info.dli_sname,
-            status == 0 ? "succeded" : "failed");
+            exit_status == expected_return ? "succeded" : "failed");
 
     // Dump output from stdout of failed processes
-    if (status != 0) {
+    if (exit_status != expected_return) {
+        printf("Expected return code %d, got %d\n", expected_return, exit_status);
         char output_buffer[4096];
         while (true) {
             ssize_t count = read(filedes[0], output_buffer, sizeof(output_buffer));
@@ -71,6 +75,11 @@ void run(void (*test_fn)()) {
     }
 
     close(filedes[0]);
+
+}
+
+void run(void (*test_fn)()) {
+    run_return(test_fn, 0);
 }
 
 int main () {
@@ -78,4 +87,5 @@ int main () {
 
     run(&test_plus);
     run(&test_minus);
+    run_return(&test_minus, 1);
 }
