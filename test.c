@@ -5,6 +5,11 @@
 #include <dlfcn.h>
 #include <errno.h>
 
+#ifndef TESTVERBSOE
+#define TESTVERBOSE false
+#endif
+
+
 void test_plus() {
     assert(1 + 1 == 2);
 }
@@ -54,8 +59,9 @@ void run_return(void (*test_fn)(), int expected_return) {
             exit_status == expected_return ? "succeded" : "failed");
 
     // Dump output from stdout of failed processes
-    if (exit_status != expected_return) {
+    if (exit_status != expected_return || TESTVERBOSE) {
         printf("Expected return code %d, got %d\n", expected_return, exit_status);
+
         char output_buffer[4096];
         while (true) {
             ssize_t count = read(filedes[0], output_buffer, sizeof(output_buffer));
