@@ -52,15 +52,22 @@ void run_return(void (*test_fn)(), int expected_return) {
 
     int status = 0;
     // Wait for the child process to terminate
-    waitpid(child_pid, &status, 0);
-    int exit_status = WEXITSTATUS(status);
+    if (waitpid(child_pid, &status, 0) == -1) {
+        perror("waitpid() failed");
+        exit(EXIT_FAILURE);
+    }
+    int exit_status;
+    if (WIFEXITED(status)) {
+        exit_status = WEXITSTATUS(status);
+    } else {
+        exit_status = 1; // Declare failure if the process didn't exit normally
+    }
 
     printf("Test %s %s!\n", info.dli_sname,
             exit_status == expected_return ? "succeded" : "failed");
 
-    // Dump output from stdout of failed processes
     if (exit_status != expected_return || TESTVERBOSE) {
-        printf("Expected return code %d, got %d\n", expected_return, exit_status);
+        printf("\tExpected return code %d, got %d\n", expected_return, exit_status);
 
         char output_buffer[4096];
         while (true) {
@@ -75,13 +82,12 @@ void run_return(void (*test_fn)(), int expected_return) {
             } else if (count == 0) {
                 break;
             } else {
-                printf("%s", output_buffer);
+                printf("%s\n", output_buffer);
             }
         }
     }
 
     close(filedes[0]);
-
 }
 
 void run(void (*test_fn)()) {
